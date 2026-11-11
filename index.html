@@ -1,0 +1,208 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>QRコード読み取り</title>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #F5F7FA;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+
+    h1 {
+      color: #2253A3;
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 500px;
+      margin: 20px auto;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    button {
+      width: 100%;
+      max-width: 500px;
+      padding: 14px;
+      margin: 8px auto;
+      border: none;
+      border-radius: 8px;
+      background: #2253A3;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #status {
+      white-space: pre-wrap;
+      margin: 15px auto;
+      max-width: 500px;
+      color: #536171;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>QRコード読み取り</h1>
+
+  <p>参加者のQRコードをカメラにかざしてください。</p>
+
+  <div id="reader"></div>
+
+  <button id="startButton" onclick="startScanner()">
+    カメラを起動
+  </button>
+
+  <div id="status">
+    カメラの起動を待っています。
+  </div>
+
+
+<script>
+
+  let scanner = null;
+  let scanning = false;
+  let sent = false;
+
+  const statusElement =
+    document.getElementById('status');
+
+  /**
+   * カメラ起動
+   */
+  async function startScanner() {
+
+    if (scanning || sent) return;
+
+    statusElement.textContent =
+      'カメラを起動しています...';
+
+    document.getElementById('startButton').disabled = true;
+
+    try {
+
+      scanner = new Html5Qrcode(
+        'reader',
+        {
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.QR_CODE
+          ]
+        }
+      );
+
+      await scanner.start(
+        { facingMode: 'user' },
+        {
+          fps: 10,
+          qrbox: function(width, height) {
+            const size = Math.floor(
+              Math.min(width, height) * 0.7
+            );
+
+            return {
+              width: size,
+              height: size
+            };
+          },
+          aspectRatio: 1.0
+        },
+        onScanSuccess
+      );
+
+      scanning = true;
+
+      statusElement.textContent =
+        '読み取り中です。QRコードをかざしてください。';
+
+    } catch (error) {
+
+      console.error(error);
+
+      statusElement.textContent =
+        'カメラを起動できませんでした。\n' +
+        'ブラウザのカメラ使用許可を確認してください。\n\n' +
+        'エラー：' + error;
+
+      document.getElementById('startButton').disabled = false;
+    }
+  }
+
+  /**
+   * QRコード読み取り成功
+   */
+  async function onScanSuccess(decodedText) {
+
+    if (sent) return;
+
+    const id = String(decodedText).trim();
+
+    if (!/^\d+$/.test(id)) {
+      statusElement.textContent =
+        '数字のみのIDではありません。別のQRコードを読み取ってください。';
+      return;
+    }
+
+    sent = true;
+
+    statusElement.textContent =
+      '読み取り成功！受付画面に戻ります。';
+
+    try {
+      if (scanner && scanning) {
+        await scanner.stop();
+        scanning = false;
+      }
+    } catch (error) {
+      console.error(error);
+    }
+
+    if (window.opener && !window.opener.closed) {
+
+      window.opener.postMessage(
+        {
+          type: 'QR_SCAN_RESULT',
+          id: id
+        },
+        '*'
+      );
+
+      setTimeout(function() {
+        window.close();
+      }, 500);
+
+    } else {
+
+      statusElement.textContent =
+        '受付画面との接続がありません。\n受付画面からQR読み取り画面を開き直してください。';
+    }
+  }
+
+  /**
+   * ページを閉じる際にカメラ停止
+   */
+  window.addEventListener('beforeunload', function() {
+    if (scanner && scanning) {
+      scanner.stop().catch(function() {});
+    }
+  });
+
+</script>
+
+</body>
+</html>

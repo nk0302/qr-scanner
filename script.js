@@ -300,7 +300,7 @@ window.addEventListener('message', event => {
   document.getElementById('completeTime').textContent =
     result.receptionTime;
 
-  showPage('complete');
+  showPage('completePage');
 });
 
 /**
@@ -317,7 +317,7 @@ function backHome() {
 
   document.getElementById('receptionButton').disabled = false;
 
-  showPage('home');
+  showPage('homePage');
 
   // カメラが停止していれば再起動
   if (window.startQrCamera) {

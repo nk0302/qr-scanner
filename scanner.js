@@ -102,14 +102,13 @@ async function stopQrCamera() {
   cameraRunning = false;
 }
 
-// 外部からの再起動用
-window.startQrCamera = async function() {
-  qrLocked = false;
-  await startQrCamera();
-};
+console.log('scanner.js 読み込み完了');
 
-// ページ読み込み完了時にカメラを自動起動
 window.addEventListener('load', () => {
-  console.log('ページ読み込み完了：カメラを自動起動します。');
+  console.log('loadイベント実行');
+
+  const message = document.getElementById('cameraMessage');
+  message.textContent = 'カメラ起動関数を実行しています...';
+
   window.startQrCamera();
 });

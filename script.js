@@ -262,14 +262,15 @@ function sendReception(allowDuplicate) {
  * GASから受付結果を受信
  */
 window.addEventListener('message', event => {
-  const data = event.data;
+  console.log('GASからのメッセージ:', event.data);
 
+  const data = event.data;
   if (!data || data.type !== 'RECEPTION_RESULT') return;
 
   const result = data.result;
 
-  if (!result ||
-      result.requestId !== window.currentReceptionRequestId) {
+  if (!result || result.requestId !== window.currentReceptionRequestId) {
+    console.log('requestIdが一致しません');
     return;
   }
 

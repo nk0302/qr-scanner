@@ -318,7 +318,7 @@ function backHome() {
 
   document.getElementById('receptionButton').disabled = false;
 
-  showPage('homePage');
+  showPage('home');
 
   // カメラが停止していれば再起動
   if (window.startQrCamera) {

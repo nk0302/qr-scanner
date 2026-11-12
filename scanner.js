@@ -2,24 +2,27 @@
 let qrScanner = null;
 let cameraRunning = false;
 let qrLocked = false;
+let cameraStarting = false;
 
 /**
  * カメラ起動
  */
 async function startQrCamera() {
-  if (cameraRunning || qrLocked) return;
+
+  if (cameraRunning || cameraStarting || qrLocked) {
+    return;
+  }
+
+  cameraStarting = true;
 
   const message = document.getElementById('cameraMessage');
   const status = document.getElementById('cameraStatus');
-  const restartButton =
-    document.getElementById('restartCameraButton');
 
   message.textContent = 'カメラを起動しています...';
   status.textContent = '起動中';
-  status.classList.remove('active');
-  restartButton.classList.add('hidden');
 
   try {
+
     if (!qrScanner) {
       qrScanner = new Html5Qrcode('reader', {
         formatsToSupport: [
@@ -29,6 +32,7 @@ async function startQrCamera() {
       });
     }
 
+    // 内カメラを優先して起動
     await qrScanner.start(
       { facingMode: 'user' },
       {
@@ -42,8 +46,7 @@ async function startQrCamera() {
             width: size,
             height: size
           };
-        },
-        aspectRatio: 16 / 9
+        }
       },
       onQrDetected
     );
@@ -57,23 +60,26 @@ async function startQrCamera() {
     status.classList.add('active');
 
   } catch (error) {
+
     console.error('Camera error:', error);
 
     message.textContent =
       'カメラを起動できませんでした。\n' +
       'ブラウザのカメラ使用許可を確認してください。\n' +
-      'エラー：' + error.message;
+      error.message;
 
-    status.textContent = '停止中';
+    status.textContent = '起動失敗';
 
-    restartButton.classList.remove('hidden');
+  } finally {
+    cameraStarting = false;
   }
 }
 
 /**
- * QRコード読み取り成功
+ * QRコード読み取り
  */
 async function onQrDetected(decodedText) {
+
   if (qrLocked) return;
 
   const id = String(decodedText).trim();
@@ -101,12 +107,13 @@ async function onQrDetected(decodedText) {
  * カメラ停止
  */
 async function stopQrCamera() {
+
   if (!qrScanner || !cameraRunning) return;
 
   try {
     await qrScanner.stop();
   } catch (error) {
-    console.error('Camera stop error:', error);
+    console.error(error);
   }
 
   cameraRunning = false;
@@ -115,22 +122,18 @@ async function stopQrCamera() {
 /**
  * カメラ再起動
  */
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('restartCameraButton')
-    .addEventListener('click', () => {
-      qrLocked = false;
-      startQrCamera();
-    });
-
-  // ページ表示時に自動起動
-  startQrCamera();
-});
-
-// script.jsから呼び出すために公開
 window.startQrCamera = async function() {
+
   qrLocked = false;
 
-  if (cameraRunning) return;
+  if (cameraRunning || cameraStarting) return;
 
   await startQrCamera();
 };
+
+/**
+ * ページ読み込み完了後、自動起動
+ */
+window.addEventListener('DOMContentLoaded', () => {
+  startQrCamera();
+});

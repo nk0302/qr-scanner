@@ -5,8 +5,8 @@ let cameraStarting = false;
 let qrLocked = false;
 
 // カメラ起動の本体
-async function startQrCameraInternal() {
-  console.log('startQrCameraInternal() 実行');
+async function startCameraInternal() {
+  console.log('startCameraInternal() 実行');
 
   if (cameraRunning || cameraStarting || qrLocked) return;
 
@@ -20,14 +20,12 @@ async function startQrCameraInternal() {
     status.textContent = '起動中';
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error('このブラウザではカメラを利用できません。HTTPS接続を確認してください。');
+      throw new Error('カメラを利用できません。HTTPS接続を確認してください。');
     }
 
     if (!qrScanner) {
       qrScanner = new Html5Qrcode('reader', {
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.QR_CODE
-        ],
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
         verbose: false
       });
     }
@@ -37,9 +35,7 @@ async function startQrCameraInternal() {
       {
         fps: 10,
         qrbox: (width, height) => {
-          const size = Math.floor(
-            Math.min(width, height) * 0.7
-          );
+          const size = Math.floor(Math.min(width, height) * 0.7);
           return { width: size, height: size };
         }
       },
@@ -55,9 +51,7 @@ async function startQrCameraInternal() {
     console.error('Camera error:', error);
 
     message.textContent =
-      'カメラを起動できませんでした。\n' +
-      'ブラウザのカメラ使用許可を確認してください。\n' +
-      error.message;
+      'カメラを起動できませんでした。\n' + error.message;
 
     status.textContent = '起動失敗';
 
@@ -66,10 +60,10 @@ async function startQrCameraInternal() {
   }
 }
 
-// 外部から呼び出すカメラ起動関数
+// 外部から呼び出す関数
 window.startQrCamera = async function() {
   qrLocked = false;
-  await startQrCameraInternal();
+  return startCameraInternal();
 };
 
 // QRコード読み取り
@@ -111,9 +105,7 @@ async function stopQrCamera() {
 }
 
 // ページ読み込み時に自動起動
-console.log('scanner.js 読み込み完了');
-
 window.addEventListener('load', () => {
-  console.log('loadイベント実行');
+  console.log('ページ読み込み完了：カメラを自動起動します。');
   window.startQrCamera();
 });

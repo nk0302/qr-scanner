@@ -6,6 +6,8 @@ let qrLocked = false;
 
 // カメラ起動
 async function startQrCamera() {
+  console.log('startQrCamera() 実行');
+  
   if (cameraRunning || cameraStarting || qrLocked) return;
 
   cameraStarting = true;

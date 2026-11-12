@@ -4,10 +4,10 @@ let cameraRunning = false;
 let cameraStarting = false;
 let qrLocked = false;
 
-// カメラ起動
-async function startQrCamera() {
-  console.log('startQrCamera() 実行');
-  
+// カメラ起動の本体
+async function startQrCameraInternal() {
+  console.log('startQrCameraInternal() 実行');
+
   if (cameraRunning || cameraStarting || qrLocked) return;
 
   cameraStarting = true;
@@ -66,6 +66,12 @@ async function startQrCamera() {
   }
 }
 
+// 外部から呼び出すカメラ起動関数
+window.startQrCamera = async function() {
+  qrLocked = false;
+  await startQrCameraInternal();
+};
+
 // QRコード読み取り
 async function onQrDetected(decodedText) {
   if (qrLocked) return;
@@ -104,13 +110,10 @@ async function stopQrCamera() {
   cameraRunning = false;
 }
 
+// ページ読み込み時に自動起動
 console.log('scanner.js 読み込み完了');
 
 window.addEventListener('load', () => {
   console.log('loadイベント実行');
-
-  const message = document.getElementById('cameraMessage');
-  message.textContent = 'カメラ起動関数を実行しています...';
-
   window.startQrCamera();
 });

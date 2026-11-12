@@ -108,14 +108,8 @@ window.startQrCamera = async function() {
   await startQrCamera();
 };
 
-// ページ読み込み時に自動起動
-function initializeCamera() {
+// ページ読み込み完了時にカメラを自動起動
+window.addEventListener('load', () => {
   console.log('ページ読み込み完了：カメラを自動起動します。');
-  startQrCamera();
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeCamera);
-} else {
-  initializeCamera();
-}
+  window.startQrCamera();
+});

@@ -5,12 +5,14 @@
 const GAS_URL =
   'https://script.google.com/macros/s/AKfycbyYRbsUhMPrHz1BvNcq3Z-jzXpq7tLeCxdv20hR7wf69l9EAKnVNjHHEGpo0AMeasEKLg/exec';
 
+
 /**
- * 状態
+ * 状態管理
  */
 let selectedParticipant = null;
 let receptionMethod = '';
 let requestInProgress = false;
+
 
 /**
  * 画面切り替え
@@ -23,7 +25,11 @@ function showPage(pageId) {
   ];
 
   pageIds.forEach(id => {
-    document.getElementById(id).classList.add('hidden');
+    const page = document.getElementById(id);
+
+    if (page) {
+      page.classList.add('hidden');
+    }
   });
 
   const target = document.getElementById(pageId);
@@ -36,13 +42,17 @@ function showPage(pageId) {
   target.classList.remove('hidden');
 }
 
+
 /**
- * JSONPでGASに問い合わせ
+ * GASとのJSONP通信
  */
 function gasGet(params) {
   return new Promise((resolve, reject) => {
+
     const callbackName =
-      'gasCallback_' + Date.now() + '_' +
+      'gasCallback_' +
+      Date.now() +
+      '_' +
       Math.floor(Math.random() * 100000);
 
     const script = document.createElement('script');
@@ -52,14 +62,22 @@ function gasGet(params) {
       callback: callbackName
     });
 
+    let finished = false;
+
     const timeout = setTimeout(() => {
       cleanup();
       reject(new Error('GASとの通信がタイムアウトしました。'));
     }, 15000);
 
     function cleanup() {
+      if (finished) return;
+
+      finished = true;
+
       clearTimeout(timeout);
+
       delete window[callbackName];
+
       script.remove();
     }
 
@@ -73,14 +91,16 @@ function gasGet(params) {
       reject(new Error('GASとの通信に失敗しました。'));
     };
 
-    script.src = GAS_URL + '?' + query.toString();
+    script.src =
+      GAS_URL + '?' + query.toString();
 
     document.body.appendChild(script);
   });
 }
 
+
 /**
- * ID検索
+ * QRコードからID検索
  */
 async function searchId(id, method = 'QRコード') {
   const message = document.getElementById('homeMessage');
@@ -97,23 +117,40 @@ async function searchId(id, method = 'QRコード') {
 
     if (!result.success) {
       alert(result.message);
+
+      // QR読み取り後にカメラが停止している場合は再起動
+      if (window.startQrCamera) {
+        window.startQrCamera();
+      }
+
       return;
     }
 
     receptionMethod = method;
+
     selectParticipant(result.participant);
 
   } catch (error) {
+    console.error('ID検索エラー:', error);
+
     message.textContent = error.message;
+
+    if (window.startQrCamera) {
+      window.startQrCamera();
+    }
   }
 }
+
 
 /**
  * 氏名検索
  */
 async function searchName() {
-  const name = document.getElementById('nameInput').value.trim();
-  const results = document.getElementById('searchResults');
+  const name =
+    document.getElementById('nameInput').value.trim();
+
+  const results =
+    document.getElementById('searchResults');
 
   results.replaceChildren();
 
@@ -140,6 +177,7 @@ async function searchName() {
     result.participants.forEach(participant => {
       const button = document.createElement('button');
 
+      button.type = 'button';
       button.className = 'candidate';
 
       button.textContent =
@@ -151,6 +189,7 @@ async function searchName() {
 
       button.addEventListener('click', () => {
         receptionMethod = '氏名検索';
+
         selectParticipant(participant);
       });
 
@@ -158,14 +197,16 @@ async function searchName() {
     });
 
   } catch (error) {
+    console.error('氏名検索エラー:', error);
+
     results.textContent = error.message;
   }
 }
 
-/**
- * 参加者選択
- */
 
+/**
+ * 参加者選択・確認画面表示
+ */
 function selectParticipant(participant) {
   console.log('selectParticipant開始:', participant);
 
@@ -186,10 +227,15 @@ function selectParticipant(participant) {
   document.getElementById('confirmFee').textContent =
     participant.feePaid ? '納入済み' : '未納';
 
+  // 受付済み表示
   document.getElementById('duplicateMessage')
-    .classList.toggle('hidden', !participant.received);
+    .classList.toggle(
+      'hidden',
+      !participant.received
+    );
 
-  const button = document.getElementById('receptionButton');
+  const button =
+    document.getElementById('receptionButton');
 
   button.disabled = false;
 
@@ -204,16 +250,25 @@ function selectParticipant(participant) {
   console.log('確認画面への切り替え完了');
 }
 
+
 /**
- * 受付記録
+ * 受付ボタン
  */
 function completeReception() {
-  if (!selectedParticipant || requestInProgress) return;
+  if (!selectedParticipant || requestInProgress) {
+    return;
+  }
 
-  const allowDuplicate = selectedParticipant.received;
+  const allowDuplicate =
+    selectedParticipant.received;
 
+  // 既に受付済みの場合は確認
   if (allowDuplicate) {
-    if (!confirm('既に受付済みです。再受付しますか？')) {
+    const accepted = confirm(
+      '既に受付済みです。再受付しますか？'
+    );
+
+    if (!accepted) {
       return;
     }
   }
@@ -221,91 +276,107 @@ function completeReception() {
   sendReception(allowDuplicate);
 }
 
+
 /**
- * POSTを非表示iframeに送信
+ * 受付登録
+ *
+ * JSONPを利用してGASに受付情報を送信する
  */
-function sendReception(allowDuplicate) {
-  if (requestInProgress) return;
+async function sendReception(allowDuplicate) {
+  if (requestInProgress || !selectedParticipant) {
+    return;
+  }
 
   requestInProgress = true;
 
-  const button = document.getElementById('receptionButton');
+  const button =
+    document.getElementById('receptionButton');
 
   button.disabled = true;
   button.textContent = '受付処理中...';
 
   const requestId =
-    Date.now() + '_' + Math.floor(Math.random() * 100000);
+    Date.now() + '_' +
+    Math.floor(Math.random() * 100000);
 
-  document.getElementById('postId').value =
-    selectedParticipant.id;
+  try {
+    console.log('受付処理開始');
 
-  document.getElementById('postMethod').value =
-    receptionMethod;
+    const result = await gasGet({
+      action: 'registerReception',
 
-  document.getElementById('postAllowDuplicate').value =
-    String(allowDuplicate);
+      id: selectedParticipant.id,
 
-  document.getElementById('postRequestId').value =
-    requestId;
+      method: receptionMethod,
 
-  const form = document.getElementById('postForm');
+      allowDuplicate: String(allowDuplicate),
 
-  form.action = GAS_URL;
+      requestId: requestId
+    });
 
-  window.currentReceptionRequestId = requestId;
+    console.log('受付処理結果:', result);
 
-  form.submit();
-}
+    requestInProgress = false;
 
-/**
- * GASから受付結果を受信
- */
-window.addEventListener('message', event => {
-  console.log('GASからのメッセージ:', event.data);
+    // サーバー側で重複を検出した場合
+    if (result.status === 'duplicate') {
+      const accepted = confirm(
+        '既に受付済みです。再受付しますか？'
+      );
 
-  const data = event.data;
-  if (!data || data.type !== 'RECEPTION_RESULT') return;
+      if (accepted) {
+        button.disabled = false;
 
-  const result = data.result;
+        await sendReception(true);
 
-  if (!result || result.requestId !== window.currentReceptionRequestId) {
-    console.log('requestIdが一致しません');
-    return;
-  }
+      } else {
+        button.disabled = false;
+        button.textContent = 'この内容で受付する';
+      }
 
-  requestInProgress = false;
+      return;
+    }
 
-  const button = document.getElementById('receptionButton');
+    // 受付失敗
+    if (!result.success) {
+      alert(
+        result.message || '受付に失敗しました。'
+      );
 
-  if (result.status === 'duplicate') {
-    if (confirm('既に受付済みです。再受付しますか？')) {
-      sendReception(true);
-    } else {
       button.disabled = false;
       button.textContent = 'この内容で受付する';
-    }
-    return;
-  }
 
-  if (!result.success) {
-    alert(result.message || '受付に失敗しました。');
+      return;
+    }
+
+    // 受付完了画面
+    document.getElementById('completeName').textContent =
+      result.participant.name + ' 様';
+
+    document.getElementById('completeTime').textContent =
+      result.receptionTime;
+
+    showPage('completePage');
+
+  } catch (error) {
+    console.error('受付エラー:', error);
+
+    requestInProgress = false;
+
     button.disabled = false;
     button.textContent = 'この内容で受付する';
-    return;
+
+    alert(
+      '受付処理に失敗しました。\n' +
+      error.message +
+      '\n\n受付ログに記録されていないか確認してください。'
+    );
   }
+}
 
-  document.getElementById('completeName').textContent =
-    result.participant.name + ' 様';
-
-  document.getElementById('completeTime').textContent =
-    result.receptionTime;
-
-  showPage('completePage');
-});
 
 /**
- * ホームに戻る
+ * ホーム画面に戻る
  */
 function backHome() {
   selectedParticipant = null;
@@ -313,37 +384,54 @@ function backHome() {
   requestInProgress = false;
 
   document.getElementById('nameInput').value = '';
-  document.getElementById('searchResults').replaceChildren();
+
+  document.getElementById('searchResults')
+    .replaceChildren();
+
   document.getElementById('homeMessage').textContent = '';
 
-  document.getElementById('receptionButton').disabled = false;
+  const button =
+    document.getElementById('receptionButton');
+
+  button.disabled = false;
+  button.textContent = 'この内容で受付する';
 
   showPage('homePage');
 
-  // カメラが停止していれば再起動
+  // QRカメラ再起動
   if (window.startQrCamera) {
     window.startQrCamera();
   }
 }
 
+
 /**
- * ボタン設定
+ * イベント登録
  */
 document.addEventListener('DOMContentLoaded', () => {
+
+  // 氏名検索
   document.getElementById('searchButton')
     .addEventListener('click', searchName);
 
+  // Enterキーで氏名検索
   document.getElementById('nameInput')
     .addEventListener('keydown', event => {
-      if (event.key === 'Enter') searchName();
+      if (event.key === 'Enter') {
+        searchName();
+      }
     });
 
+  // 受付
   document.getElementById('receptionButton')
     .addEventListener('click', completeReception);
 
+  // 戻る
   document.getElementById('backButton')
     .addEventListener('click', backHome);
 
+  // 次の方の受付
   document.getElementById('nextButton')
     .addEventListener('click', backHome);
+
 });

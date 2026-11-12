@@ -152,7 +152,10 @@ async function searchName() {
 /**
  * 参加者選択
  */
+
 function selectParticipant(participant) {
+  console.log('selectParticipant開始:', participant);
+
   selectedParticipant = participant;
 
   document.getElementById('confirmId').textContent =
@@ -181,7 +184,11 @@ function selectParticipant(participant) {
     ? '再受付する'
     : 'この内容で受付する';
 
-  showPage('confirm');
+  console.log('参加者情報の表示完了');
+
+  showPage('confirmPage');
+
+  console.log('確認画面への切り替え完了');
 }
 
 /**

@@ -4,205 +4,161 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  <title>QRコード読み取り</title>
-
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      padding: 20px;
-      background: #F5F7FA;
-      font-family: Arial, sans-serif;
-      text-align: center;
-    }
-
-    h1 {
-      color: #2253A3;
-    }
-
-    #reader {
-      width: 100%;
-      max-width: 500px;
-      margin: 20px auto;
-      background: white;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    button {
-      width: 100%;
-      max-width: 500px;
-      padding: 14px;
-      margin: 8px auto;
-      border: none;
-      border-radius: 8px;
-      background: #2253A3;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-    }
-
-    #status {
-      white-space: pre-wrap;
-      margin: 15px auto;
-      max-width: 500px;
-      color: #536171;
-    }
-  </style>
+  <meta name="theme-color" content="#2253A3">
+  <title>受付システム</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
+  <main class="container">
 
-  <h1>QRコード読み取り</h1>
+    <!-- ホーム画面 -->
+    <section id="homePage">
 
-  <p>参加者のQRコードをカメラにかざしてください。</p>
+      <header class="header">
+        <h1>受付システム</h1>
+        <p>QRコードまたは氏名で受付してください。</p>
+      </header>
 
-  <div id="reader"></div>
+      <section class="panel camera-panel">
+        <div class="panel-heading">
+          <h2>QRコード受付</h2>
+          <span id="cameraStatus" class="status">起動準備中</span>
+        </div>
 
-  <button id="startButton" onclick="startScanner()">
-    カメラを起動
-  </button>
+        <div id="reader"></div>
 
-  <div id="status">
-    カメラの起動を待っています。
-  </div>
+        <p id="cameraMessage" class="message">
+          カメラを起動しています...
+        </p>
+
+        <button
+          id="restartCameraButton"
+          class="secondary-button hidden"
+          type="button">
+          カメラを再起動
+        </button>
+      </section>
+
+      <section class="panel">
+        <h2>氏名から検索</h2>
+
+        <div class="search-row">
+          <input
+            id="nameInput"
+            type="text"
+            placeholder="参加者の氏名を入力"
+            autocomplete="off">
+
+          <button id="searchButton" type="button">
+            検索
+          </button>
+        </div>
+
+        <div id="searchResults"></div>
+      </section>
+
+      <p id="homeMessage" class="message"></p>
+
+    </section>
 
 
-<script>
+    <!-- 確認画面 -->
+    <section id="confirmPage" class="hidden">
 
-  let scanner = null;
-  let scanning = false;
-  let sent = false;
+      <header class="header">
+        <h1>参加者情報の確認</h1>
+        <p>受付する参加者に間違いがないか確認してください。</p>
+      </header>
 
-  const statusElement =
-    document.getElementById('status');
+      <section class="panel">
 
-  /**
-   * カメラ起動
-   */
-  async function startScanner() {
+        <div class="info-row">
+          <span>ID</span>
+          <strong id="confirmId"></strong>
+        </div>
 
-    if (scanning || sent) return;
+        <div class="info-row">
+          <span>氏名</span>
+          <strong id="confirmName"></strong>
+        </div>
 
-    statusElement.textContent =
-      'カメラを起動しています...';
+        <div class="info-row">
+          <span>フリガナ</span>
+          <strong id="confirmFurigana"></strong>
+        </div>
 
-    document.getElementById('startButton').disabled = true;
+        <div class="info-row">
+          <span>クラス</span>
+          <strong id="confirmClass"></strong>
+        </div>
 
-    try {
+        <div class="info-row">
+          <span>会費</span>
+          <strong id="confirmFee"></strong>
+        </div>
 
-      scanner = new Html5Qrcode(
-        'reader',
-        {
-          formatsToSupport: [
-            Html5QrcodeSupportedFormats.QR_CODE
-          ]
-        }
-      );
+      </section>
 
-      await scanner.start(
-        { facingMode: 'user' },
-        {
-          fps: 10,
-          qrbox: function(width, height) {
-            const size = Math.floor(
-              Math.min(width, height) * 0.7
-            );
+      <div id="duplicateMessage" class="warning hidden">
+        この参加者は既に受付済みです。
+        再受付する場合は係員に確認してください。
+      </div>
 
-            return {
-              width: size,
-              height: size
-            };
-          },
-          aspectRatio: 1.0
-        },
-        onScanSuccess
-      );
+      <button id="receptionButton" type="button">
+        この内容で受付する
+      </button>
 
-      scanning = true;
+      <button id="backButton" class="secondary-button" type="button">
+        戻る
+      </button>
 
-      statusElement.textContent =
-        '読み取り中です。QRコードをかざしてください。';
+    </section>
 
-    } catch (error) {
 
-      console.error(error);
+    <!-- 完了画面 -->
+    <section id="completePage" class="hidden">
 
-      statusElement.textContent =
-        'カメラを起動できませんでした。\n' +
-        'ブラウザのカメラ使用許可を確認してください。\n\n' +
-        'エラー：' + error;
+      <section class="complete-panel">
+        <div class="check-icon">✓</div>
 
-      document.getElementById('startButton').disabled = false;
-    }
-  }
+        <h1>受付完了</h1>
 
-  /**
-   * QRコード読み取り成功
-   */
-  async function onScanSuccess(decodedText) {
+        <h2 id="completeName"></h2>
 
-    if (sent) return;
+        <p id="completeTime"></p>
 
-    const id = String(decodedText).trim();
+        <button id="nextButton" type="button">
+          次の方の受付へ
+        </button>
+      </section>
 
-    if (!/^\d+$/.test(id)) {
-      statusElement.textContent =
-        '数字のみのIDではありません。別のQRコードを読み取ってください。';
-      return;
-    }
+    </section>
 
-    sent = true;
+  </main>
 
-    statusElement.textContent =
-      '読み取り成功！受付画面に戻ります。';
+  <!-- 受付記録送信用iframe -->
+  <iframe
+    name="postFrame"
+    id="postFrame"
+    class="hidden-frame">
+  </iframe>
 
-    try {
-      if (scanner && scanning) {
-        await scanner.stop();
-        scanning = false;
-      }
-    } catch (error) {
-      console.error(error);
-    }
+  <form
+    id="postForm"
+    method="POST"
+    target="postFrame"
+    class="hidden-frame">
 
-    if (window.opener && !window.opener.closed) {
+    <input name="id" id="postId">
+    <input name="method" id="postMethod">
+    <input name="allowDuplicate" id="postAllowDuplicate">
+    <input name="requestId" id="postRequestId">
 
-      window.opener.postMessage(
-        {
-          type: 'QR_SCAN_RESULT',
-          id: id
-        },
-        '*'
-      );
+  </form>
 
-      setTimeout(function() {
-        window.close();
-      }, 500);
-
-    } else {
-
-      statusElement.textContent =
-        '受付画面との接続がありません。\n受付画面からQR読み取り画面を開き直してください。';
-    }
-  }
-
-  /**
-   * ページを閉じる際にカメラ停止
-   */
-  window.addEventListener('beforeunload', function() {
-    if (scanner && scanning) {
-      scanner.stop().catch(function() {});
-    }
-  });
-
-</script>
-
+  <script src="script.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="scanner.js"></script>
 </body>
 </html>

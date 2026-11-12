@@ -16,11 +16,24 @@ let requestInProgress = false;
  * 画面切り替え
  */
 function showPage(pageId) {
-  ['homePage', 'confirmPage', 'completePage'].forEach(id => {
+  const pageIds = [
+    'homePage',
+    'confirmPage',
+    'completePage'
+  ];
+
+  pageIds.forEach(id => {
     document.getElementById(id).classList.add('hidden');
   });
 
-  document.getElementById(pageId).classList.remove('hidden');
+  const target = document.getElementById(pageId);
+
+  if (!target) {
+    console.error('画面が見つかりません:', pageId);
+    return;
+  }
+
+  target.classList.remove('hidden');
 }
 
 /**
